@@ -10,6 +10,7 @@ typedef struct WindowInfo
     int height;
     int FPS;
 } WindowInfo;
+
 typedef struct ScreenPoint
 {
     float x;
@@ -55,5 +56,6 @@ typedef struct Object
     Transform transform;
     Mesh* mesh;
 } Object;
+
 
 #endif
