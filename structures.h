@@ -54,8 +54,18 @@ typedef struct Mesh
 typedef struct Object
 {
     Transform transform;
+    char* name;
     Mesh* mesh;
 } Object;
+
+
+
+
+
+
+Object CreateObject(char* name);
+
+Mesh* CreateMesh(Point* verts, int vertexCount, int (*faces)[3], int faceCount);
 
 
 #endif

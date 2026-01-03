@@ -36,22 +36,11 @@ int main()
     printf("Creating object\n");
     int vertexCount = sizeof(verts) / sizeof(verts[0]);
     int faceCount = sizeof(faces) / sizeof(faces[0]);
-    
-    // Creating Transform
-    Transform obj1Transform = {0.0, 0.0, 1.5};
 
-    // Creating Mesh
-    Mesh* obj1Mesh = malloc(sizeof(Mesh) + vertexCount * sizeof(Point));
-    obj1Mesh->vertexCount = vertexCount;
-    obj1Mesh->facesCount = faceCount;
-    obj1Mesh->faces = malloc(faceCount * sizeof *obj1Mesh->faces);
-    memcpy(obj1Mesh->faces, faces, faceCount * sizeof(*obj1Mesh->faces));
-    memcpy(obj1Mesh->vertices, verts, vertexCount * sizeof(Point));
+    Object obj1 = CreateObject("Penger");
 
-    // Creating Object using the transform and Mesh.
-    Object obj1;
-    obj1.transform = obj1Transform;
-    obj1.mesh = obj1Mesh;
+    obj1.mesh = CreateMesh(verts, vertexCount, faces, faceCount);
+    printf("Objects name is: %s\n", obj1.name);
     // -----------------------------------------------------------------------
     
 
@@ -87,13 +76,14 @@ int main()
         // Setting animation variables
         angle = 3.14159265 / 128;
 
+        // printf("Vertex Count: %f\n", obj1.mesh->vertexCount);
         // rotating/translating the object
         for (int i = 0; i < obj1.mesh->vertexCount; i++)
         {
             // Rotating object around an axis
-            rotate_xz(obj1Mesh, &obj1Mesh->vertices[i], -angle);
-            // rotate_xy(obj1Mesh, &obj1Mesh->vertices[i], -angle);
-            // rotate_yz(obj1Mesh, &obj1Mesh->vertices[i], angle);
+            rotate_xz(obj1.mesh, &obj1.mesh->vertices[i], -angle);
+            // rotate_xy(obj1.mesh, &obj1.mesh->vertices[i], -angle);
+            // rotate_yz(obj1.mesh, &obj1.mesh->vertices[i], angle);
 
             // Translate Object in the z direction
             // translateObjectZ(&obj1, 0.00002);
