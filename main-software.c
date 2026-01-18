@@ -184,6 +184,7 @@ int main(int argc, char *argv[])
     int quit = 0;
     bool mouseGrabbed = false;
     bool Wireframe = false;
+    bool renderDebugRays = false;
     SDL_Event event;
 
     // Variables for delta time
@@ -231,6 +232,16 @@ int main(int argc, char *argv[])
                 {
                     Wireframe = !Wireframe;
                 }
+                if (event.key.scancode == SDL_SCANCODE_L)
+                {
+                    renderDebugRays = !renderDebugRays;
+                    printf("Render Debug Rays: ");
+                    if (renderDebugRays == true) printf("On\n");
+                    else                         printf("Off\n");
+
+                    // if (renderDebugRays == true)
+                    //     InitDebugLine();
+                }
             }
 
 
@@ -241,7 +252,7 @@ int main(int argc, char *argv[])
                 if (event.button.button == SDL_BUTTON_LEFT && mouseGrabbed == true)
                 {
                     Ray ray = CreateRay(&cam);
-                    ray.direction = Vector3Scale(ray.direction, -1.0f);
+                    // ray.direction = Vector3Scale(ray.direction, -1.0f);
                     float dist;
                     Object* hitObj = RaycastScene(ray, GlobalObjects, GlobalObjectCount, &dist);
 
@@ -308,7 +319,12 @@ int main(int argc, char *argv[])
         RotateObjectY(&testScene.objects[0], -angle);
 
 
-        // // Render all objects
+        if (renderDebugRays == true && GlobalRayCount > 0)
+        {
+            RenderDebugRays(renderer, program, testScene.mainCam, GlobalRays, GlobalRayCount);
+        }
+        
+        // Render all objects
         RenderScene(renderer, program, &testScene, lightDirWorld, Wireframe);
         
 

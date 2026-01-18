@@ -53,6 +53,8 @@ void RenderTriangles(SDL_Renderer* renderer, WindowInfo program);
 
 // Full render function to encapsulate all settings
 void RenderScene(SDL_Renderer* renderer, WindowInfo program, Scene* scene, Vector3 lightDirCamera, bool Wireframe);
+int ClipLineZ(Vector3* p1, Vector3* p2);
+void RenderDebugRays(SDL_Renderer* renderer, WindowInfo program, Camera* cam, Ray* GlobalRays, int rayCount);
 
 
 

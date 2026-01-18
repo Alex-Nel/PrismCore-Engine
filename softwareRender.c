@@ -620,6 +620,90 @@ void RenderScene(SDL_Renderer* renderer, WindowInfo program, Scene* scene, Vecto
 
 
 
+int ClipLineZ(Vector3* p1, Vector3* p2)
+{
+    const float nearZ = 0.1f;
+
+    // Case 1: Both points are behind the camera -> Draw nothing
+    if (p1->z < nearZ && p2->z < nearZ) return 0;
+
+    // Case 2: Both points are in front -> Keep as is
+    if (p1->z >= nearZ && p2->z >= nearZ) return 1;
+
+    // Case 3: Line crosses the plane. We must "cut" the part behind us.
+    // Calculate 't', the percentage of the line where it hits the plane.
+    float t = (nearZ - p1->z) / (p2->z - p1->z);
+
+    // Calculate the intersection point
+    Vector3 intersection = {
+        p1->x + (p2->x - p1->x) * t,
+        p1->y + (p2->y - p1->y) * t,
+        nearZ // The Z is now exactly at the near plane
+    };
+
+    // Replace the point that was behind the camera with the intersection
+    if (p1->z < nearZ) *p1 = intersection;
+    else               *p2 = intersection;
+
+    return 1;
+}
+
+void RenderDebugRays(SDL_Renderer* renderer, WindowInfo program, Camera* cam, Ray* GlobalRays, int rayCount)
+{
+    // Constants for this function
+    const float nearZ = 0.1f;
+    const Color red = {255, 0, 0, 255};
+
+    for (int i = 0; i < rayCount; ++i)
+    {
+        // Transform World -> Camera Space -> Fix Coordinate System
+        
+        // Calculate World positions
+        Vector3 startWorld = GlobalRays[i].origin;
+        Vector3 endWorld   = Vector3Add(startWorld, Vector3Scale(GlobalRays[i].direction, 100.0f)); 
+
+        // Transform to Camera Space
+        Vector3 start = CameraSpace(cam, startWorld);
+        Vector3 end   = CameraSpace(cam, endWorld);
+
+        // FLIP Z: Essential for Software Renderer
+        start.z *= -1.0f;
+        end.z   *= -1.0f;
+
+
+        // Inline Clipping (Prevents divide-by-zero / vanishing lines)
+
+        // If both points are behind the camera, the line is invisible. Skip it.
+        if (start.z < nearZ && end.z < nearZ) continue;
+
+        // If 'start' is behind the camera, we cut it forward to the near plane
+        // Same check for the 'end' point
+        if (start.z < nearZ) 
+        {
+            float t = (nearZ - start.z) / (end.z - start.z);
+            start.x += (end.x - start.x) * t;
+            start.y += (end.y - start.y) * t;
+            start.z = nearZ; 
+        }
+        else if (end.z < nearZ) 
+        {
+            float t = (nearZ - end.z) / (start.z - end.z);
+            end.x += (start.x - end.x) * t;
+            end.y += (start.y - end.y) * t;
+            end.z = nearZ;
+        }
+
+
+        // 3. Project to Screen & Draw
+        DrawLine(renderer, Screen(Project(start), program), Screen(Project(end), program), program, red);
+    }
+}
+
+
+
+
+
+
 
 /////////////////////////////////////////////////////////////////////
 // Old Rotation functions - These rotate the mesh, not the object ///
