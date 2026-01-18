@@ -124,6 +124,16 @@ typedef struct Camera
 } Camera;
 
 
+// A scene contains several objects
+typedef struct Scene
+{
+    Camera* mainCam;
+    int objectCount;
+    int objectCapacity;
+    Object* objects;
+} Scene;
+
+
 // A 4x4 matrix used for openGL
 typedef struct Matrix4
 {
@@ -211,6 +221,10 @@ Color ColorScale(Color color, float brightness);
 
 // .obj file parser
 Mesh* load_obj_mesh(const char *filename, Color color);
+
+
+// Scene functions
+void AddObjectToScene(Scene* scene, Object* obj);
 
 
 // Matrix4 operations

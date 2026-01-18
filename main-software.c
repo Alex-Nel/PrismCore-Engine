@@ -16,6 +16,10 @@ Object* GlobalObjects = NULL;
 int GlobalObjectCount = 0;
 int GlobalObjectCapacity = 0;
 
+Ray* GlobalRays = NULL;
+int GlobalRayCount = 0;
+int GlobalRayCapacity = 0;
+
 
 
 void AddGlobalObject(Object obj)
@@ -32,6 +36,22 @@ void AddGlobalObject(Object obj)
     }
     
     GlobalObjects[GlobalObjectCount++] = obj;
+}
+
+void AddRay(Ray r)
+{
+    if (GlobalRayCount >= GlobalRayCapacity)
+    {
+        // Increase capacity
+        if (GlobalRayCapacity == 0)
+            GlobalRayCapacity = 2;
+        else
+            GlobalRayCapacity *= 2;
+        
+        GlobalRays = realloc(GlobalRays, sizeof(Ray) * GlobalRayCapacity);
+    }
+
+    GlobalRays[GlobalRayCount++] = r;
 }
 
 
@@ -71,10 +91,11 @@ int main(int argc, char *argv[])
     printf("Renderer: %s\n", SDL_GetRendererName(renderer));
     printf("SDL renderer Success\n");
 
-    SDL_SetWindowRelativeMouseMode(window, true);
+
     
 
 
+    Scene testScene = {0};
 
     // Creating an object
     // -----------------------------------------------------------------------
@@ -87,18 +108,19 @@ int main(int argc, char *argv[])
     Color red = {240, 10, 10, 255};
 
     obj1.mesh = CreateMesh(verts, vertexCount, faces, faceCount, red);
-    obj1.transform.rotation.w = 0;
-    obj1.transform.rotation.y = 1;
+    // obj1.transform.rotation.w = 0;
+    // obj1.transform.rotation.y = 1;
     printf("Objects name is: %s\n", obj1.name);
 
     AddGlobalObject(obj1);
+    AddObjectToScene(&testScene, &obj1);
 
     // Creating Second Object
     // -----------------------------------------------------------------------
     vertexCount = sizeof(Cverts) / sizeof(Cverts[0]);
     faceCount = sizeof(Cfaces) / sizeof(Cfaces[0]);
 
-    Object obj2 = CreateObject("Cube");
+    Object obj2 = CreateObject("Sword");
 
     Color green = {10, 245, 10, 255};
 
@@ -106,11 +128,12 @@ int main(int argc, char *argv[])
     obj2.mesh = load_obj_mesh("E:/Programs/PrismCore Engine/src/SampleObjects/Sword-lowpoly.obj", green);
     // obj2.mesh = load_obj_mesh("E:/Programs/SDRenderer/src/Human.obj", green);
     obj2.transform.position.x = 1.5f;
-    obj2.transform.rotation = (Quaternion){1, 0, 0, 1};
+    // obj2.transform.rotation = (Quaternion){0, 0, 0, 1};
     obj2.transform.scale = (Vector3){0.02f, 0.02f, 0.02f};
     printf("Objects2 name is: %s\n", obj2.name);
 
     AddGlobalObject(obj2);
+    AddObjectToScene(&testScene, &obj2);
     // -----------------------------------------------------------------------
     
     // Creating camera
@@ -118,6 +141,7 @@ int main(int argc, char *argv[])
     Camera cam;
     cam.transform.position = (Vector3){0, 0, 0};
     cam.rotation = (Quaternion){0, 0, 0, 1};
+    testScene.mainCam = &cam;
     // -----------------------------------------------------------------------
 
 
@@ -129,10 +153,10 @@ int main(int argc, char *argv[])
 
 
     // Delta time constant
-    const float dt = 1.0/program.FPS;
+    // const float dt = 1.0/program.FPS;
 
     // Light direction
-    Vector3 lightDirWorld = Vector3Normalize((Vector3){0.4f, -1.0f, 0.5f});
+    Vector3 lightDirWorld = Vector3Normalize((Vector3){0.5f, -1.0f, 0.5f});
     
 
     // Variables for animation
@@ -143,8 +167,8 @@ int main(int argc, char *argv[])
     float dx, dy;
 
     // Values for camera speed
-    float speed = 0.02f * dt;
-    int forward = 0, right = 0, up = 0;
+    float speed;
+    int forward, right, up;
 
     // Values for keyboard input:
     bool key_w = false;
@@ -158,11 +182,21 @@ int main(int argc, char *argv[])
     // Main Loop
     printf("Starting main loop\n");
     int quit = 0;
-    int mouseGrabbed = 1;
+    bool mouseGrabbed = false;
     bool Wireframe = false;
     SDL_Event event;
+
+    // Variables for delta time
+    uint64_t currentTime = SDL_GetPerformanceCounter();
+    uint64_t lastTime = 0;
+    double dt = 0;
+
     while (quit == 0)
     {
+        lastTime = currentTime;
+        currentTime = SDL_GetPerformanceCounter();
+        dt = (double)((currentTime - lastTime) / (double)SDL_GetPerformanceFrequency());
+
         while (SDL_PollEvent(&event))
         {
             // If the window gets closed
@@ -203,6 +237,20 @@ int main(int argc, char *argv[])
             // If the mouse get clicked 
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
             {
+                //
+                if (event.button.button == SDL_BUTTON_LEFT && mouseGrabbed == true)
+                {
+                    Ray ray = CreateRay(&cam);
+                    ray.direction = Vector3Scale(ray.direction, -1.0f);
+                    float dist;
+                    Object* hitObj = RaycastScene(ray, GlobalObjects, GlobalObjectCount, &dist);
+
+                    if (hitObj)
+                        printf("Hit object: %s at distance: %f\n", hitObj->name, dist);
+                    
+                    AddRay(ray);
+                }
+
                 // Capture the mouse if it isn't already
                 if (!SDL_GetWindowRelativeMouseMode(window))
                 {
@@ -217,14 +265,14 @@ int main(int argc, char *argv[])
                 if (mouseGrabbed == true)
                 {
                     SDL_GetRelativeMouseState(&dx, &dy);
-                    Camera_MouseLook(&cam, -dx, -dy, 0.002f);
+                    Camera_MouseLook(&cam, dx, dy, 0.002f);
                 }
             }
         }
 
         // Get keyboard state and determine input
         const bool* state = SDL_GetKeyboardState(NULL);
-        forward = state[SDL_SCANCODE_S] - state[SDL_SCANCODE_W];
+        forward = state[SDL_SCANCODE_W] - state[SDL_SCANCODE_S];
         right = state[SDL_SCANCODE_D] - state[SDL_SCANCODE_A];
         // up = state[SDL_SCANCODE_SPACE] - state[SDL_SCANCODE_LCTRL];
         up = state[SDL_SCANCODE_SPACE];
@@ -245,12 +293,10 @@ int main(int argc, char *argv[])
         angle = 100.0f * (3.14159265f / 180.0f) * dt;
 
 
+
         /////////////////////////
         /// Rendering section ///
         /////////////////////////
-
-
-        Vector3 lightDirCamera = RotateVectorByQuaternion(lightDirWorld, QuaternionInverse(cam.rotation));
 
         // Set Background
         SDL_SetRenderDrawColor(renderer, 40, 40, 40, 255);
@@ -258,12 +304,12 @@ int main(int argc, char *argv[])
 
         //  Rotate object for an animation
         // RotateObjectZ(&GlobalObjects[0], -angle);
-        // RotateObjectX(&GlobalObjects[0], angle);
-        RotateObjectY(&GlobalObjects[0], -angle);
+        RotateObjectX(&testScene.objects[1], angle);
+        RotateObjectY(&testScene.objects[0], -angle);
 
 
         // // Render all objects
-        RenderObjects(renderer, program, GlobalObjects, GlobalObjectCount, &cam, lightDirCamera, Wireframe);
+        RenderScene(renderer, program, &testScene, lightDirWorld, Wireframe);
         
 
 

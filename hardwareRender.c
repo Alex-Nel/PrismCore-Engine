@@ -332,15 +332,20 @@ void CalculateNormals(Vector3* vertices, int vCount, int* indices, int iCount, V
 
 
 
+
+
+
+
+
 //
 // Main openGL render function.
-// Renders all objects in the specified mode.
+// Renders all objects in the given scene in a specified mode.
 //
-void RenderGL(SDL_Window* window, Object* objects, int objCount, Camera* cam, unsigned int shaderProgram, int renderMode, bool debugRays, int debugRayCount)
+void RenderSceneGL(SDL_Window* window, Scene* scene, unsigned int shaderProgram, Vector3 WorldLight, int renderMode, bool debugRays, int debugRayCount)
 {
     // printf("starting rendering\n");
     // 1. Clear Screen and Depth Buffer Depth buffer is what stops triangles drawing over each other (Z-sorting)
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClearColor(0.157f, 0.157f, 0.157f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // 2. Activate Shader
@@ -363,10 +368,14 @@ void RenderGL(SDL_Window* window, Object* objects, int objCount, Camera* cam, un
             break;
     }
 
+    // printf("Getting main camera from scene\n");
+    Camera* cam = scene->mainCam;
+
 
     // Assign shader variables
     // printf("Assigning shader variables\n");
-    float lightDir[3] = {0.0f, -1.0f, -0.2f};
+    // float lightDir[3] = {0.0f, -1.0f, -0.2f};
+    float lightDir[3] = {WorldLight.x, WorldLight.y, WorldLight.z};
     int lightLoc = glGetUniformLocation(shaderProgram, "lightDir");
     glUniform3fv(lightLoc, 1, lightDir);
 
@@ -391,10 +400,10 @@ void RenderGL(SDL_Window* window, Object* objects, int objCount, Camera* cam, un
 
     // printf("\n----- Starting object drawing -----\n");
     // 5. Draw Objects
-    for (int i = 0; i < objCount; i++)
+    for (int i = 0; i < scene->objectCount; i++)
     {
         // printf("Drawing object: %d\n", i);
-        Object* obj = &objects[i];
+        Object* obj = &scene->objects[i];
 
         // printf("Checking if Mesh is valid\n");
         if (!obj->mesh) {

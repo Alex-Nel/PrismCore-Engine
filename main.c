@@ -86,6 +86,7 @@ int main(int argc, char *argv[])
 
     SDL_GLContext context = SDL_GL_CreateContext(window);
     printf("Made GLContext\n");
+    SDL_GL_SetSwapInterval(0);
 
     if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
     {
@@ -101,11 +102,14 @@ int main(int argc, char *argv[])
     printf("set up chaders\n");
 
 
-    // SDL_SetWindowRelativeMouseMode(window, true);
     
+
 
     Color red = {240, 10, 10, 255};
     Color green = {10, 245, 10, 255};
+
+    Scene testScene = {0};
+    
 
     // Creating an object
     // -----------------------------------------------------------------------
@@ -121,6 +125,8 @@ int main(int argc, char *argv[])
     printf("Objects name is: %s\n", obj1.name);
 
     AddGlobalObject(obj1);
+    AddObjectToScene(&testScene, &obj1);
+    
 
     // Creating Second Object
     // -----------------------------------------------------------------------
@@ -132,15 +138,16 @@ int main(int argc, char *argv[])
     
     // Mesh* obj2Mesh = CreateMesh(Cverts, vertexCount, Cfaces, faceCount, green);
     // Mesh* obj2Mesh = load_obj_mesh("E:/Programs/BlinkEngine/src/Sword-lowpoly.obj", green);
-    obj2.mesh = load_obj_mesh("E:/Programs/PrismCore Engine/src/SampleObjects/Human.obj", green);
+    obj2.mesh = load_obj_mesh("E:/Programs/PrismCore Engine/src/SampleObjects/Sword-lowpoly.obj", green);
     // obj2.mesh = UploadMeshToGPU(obj2Mesh);
 
     obj2.transform.position.x = 1.5f;
-    obj2.transform.rotation = (Quaternion){0, 0, 0, 1};
-    obj2.transform.scale = (Vector3){0.1f, 0.1f, 0.1f};
+    // obj2.transform.rotation = (Quaternion){0, 0, 0, 1};
+    obj2.transform.scale = (Vector3){0.02f, 0.02f, 0.02f};
     printf("Objects2 name is: %s\n", obj2.name);
 
     AddGlobalObject(obj2);
+    AddObjectToScene(&testScene, &obj2);
     // -----------------------------------------------------------------------
     
     // Creating camera
@@ -148,16 +155,21 @@ int main(int argc, char *argv[])
     Camera cam;
     cam.transform.position = (Vector3){0, 0, 0};
     cam.rotation = (Quaternion){0, 0, 0, 1};
+    testScene.mainCam = &cam;
     // -----------------------------------------------------------------------
 
-
+    testScene.objects = GlobalObjects;
+    for (int i = 0; i < testScene.objectCount; i++)
+    {
+        printf("Object %d: %s\n", i, testScene.objects[i].name);
+    }
 
 
     // Delta time constant
-    const float dt = 1.0/program.FPS;
+    // const float dt = 1.0/program.FPS;
 
     // Light direction
-    Vector3 lightDirWorld = Vector3Normalize((Vector3){0.4f, -1.0f, 0.5f});
+    Vector3 lightDirWorld = Vector3Normalize((Vector3){0.5f, -1.0f, 0.5f});
     
 
     // Variables for animation
@@ -168,8 +180,8 @@ int main(int argc, char *argv[])
     float dx, dy;
 
     // Values for camera speed
-    float speed = 0.02f * dt;
-    int forward = 0, right = 0, up = 0;
+    float speed;
+    int forward, right, up;
 
     // Values for keyboard input:
     bool key_w = false;
@@ -183,12 +195,22 @@ int main(int argc, char *argv[])
     // Main Loop
     printf("Starting main loop\n");
     bool quit = false;
-    int mouseGrabbed = 0;
+    bool mouseGrabbed = false;
     int renderMode = 0;
     bool renderDebugRays = false;
     SDL_Event event;
+
+    // Variables for delta time
+    uint64_t currentTime = SDL_GetPerformanceCounter();
+    uint64_t lastTime = 0;
+    double dt = 0;
+
     while (quit == false)
     {
+        lastTime = currentTime;
+        currentTime = SDL_GetPerformanceCounter();
+        dt = (double)((currentTime - lastTime) / (double)SDL_GetPerformanceFrequency());
+
         // printf("Polling events\n");
         while (SDL_PollEvent(&event))
         {
@@ -285,41 +307,35 @@ int main(int argc, char *argv[])
 
         // Change speed if left shift or left control are held
         if (state[SDL_SCANCODE_LSHIFT] == true)
-            speed = 6.0f * dt;
+            speed = 6.0f * (float)dt;
         else if (state[SDL_SCANCODE_LCTRL] == true)
-            speed = 0.5f * dt;
+            speed = 0.5f * (float)dt;
         else
-            speed = 3.0f * dt;
+            speed = 3.0f * (float)dt;
 
         // Move camera
         Camera_Move(&cam, forward, right, up, speed);
 
         // Setting animation variables
-        angle = 100.0f * (3.14159265f / 180.0f) * dt;
+        angle = 100.0f * (3.14159265f / 180.0f) * (float)dt;
+
 
 
         /////////////////////////
         /// Rendering section ///
         /////////////////////////
 
-
-        // Vector3 lightDirCamera = RotateVectorByQuaternion(lightDirWorld, QuaternionInverse(cam.rotation));
-
         //  Rotate object for an animation
         // RotateObjectZ(&GlobalObjects[1], -angle);
-        // RotateObjectX(&GlobalObjects[1], angle);
-        // RotateObjectY(&GlobalObjects[1], -angle);
+        RotateObjectX(&testScene.objects[1], angle);
+        RotateObjectY(&testScene.objects[0], -angle);
 
-        if (renderDebugRays == true)
-        {
-
-        }
         // // Render all objects
         if (renderDebugRays == true && GlobalRayCount > 0)
         {
             UpdateDebugRay(GlobalRays, GlobalRayCount);
         }
-        RenderGL(window, GlobalObjects, GlobalObjectCount, &cam, shaderProgram, renderMode, renderDebugRays, GlobalRayCount);
+        RenderSceneGL(window, &testScene, shaderProgram, lightDirWorld, renderMode, renderDebugRays, GlobalRayCount);
 
         SDL_Delay(1000/program.FPS);
     }

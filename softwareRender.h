@@ -52,7 +52,7 @@ void AddRenderTriangles(Object* GlobalObjects, int numObjects, Camera* cam, Vect
 void RenderTriangles(SDL_Renderer* renderer, WindowInfo program);
 
 // Full render function to encapsulate all settings
-void RenderObjects(SDL_Renderer* renderer, WindowInfo program, Object* GlobalObjects, int numObjects, Camera* cam, Vector3 lightDirCamera, bool Wireframe);
+void RenderScene(SDL_Renderer* renderer, WindowInfo program, Scene* scene, Vector3 lightDirCamera, bool Wireframe);
 
 
 

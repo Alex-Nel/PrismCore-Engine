@@ -20,7 +20,7 @@ void DrawDebugRay(unsigned int shaderProgram, Matrix4 view, Matrix4 projection, 
 
 void UploadMeshToGPU(Mesh* mesh);
 void CalculateNormals(Vector3* vertices, int vCount, int* indices, int iCount, Vector3* outNormals);
-void RenderGL(SDL_Window* window, Object* objects, int objCount, Camera* cam, unsigned int shaderProgram, int renderMode, bool debugRays, int debugRayCount);
+void RenderSceneGL(SDL_Window* window, Scene* scene, unsigned int shaderProgram, Vector3 WorldLight, int renderMode, bool debugRays, int debugRayCount);
 
 
 #endif

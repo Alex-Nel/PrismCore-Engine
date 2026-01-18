@@ -318,10 +318,16 @@ void AddRenderTriangles(Object* GlobalObjects, int numObjects, Camera* cam, Vect
 {
     const float nearPlane = 0.01f;
     int facesCount = 0;
-
+    
+    // Flip lighting for consistency
+    lightDirCamera = RotateVectorByQuaternion(lightDirCamera, QuaternionInverse(cam->rotation));
+    lightDirCamera.z *= -1.0f;
 
     for (int a = 0; a < numObjects; ++a)
-        facesCount += GlobalObjects[a].mesh->facesCount;
+    {
+        if (GlobalObjects[a].mesh != NULL)
+            facesCount += GlobalObjects[a].mesh->facesCount;
+    }
 
     // Use facesCount * 2 if more faces are needed
     triangleBuffer = malloc(sizeof(RenderTriangle) * facesCount);
@@ -336,8 +342,11 @@ void AddRenderTriangles(Object* GlobalObjects, int numObjects, Camera* cam, Vect
     // Generate triangles for every object
     for (int a = 0; a < numObjects; ++a)
     {
-        // printf("Adding triangles of object %d\n", a);
         Object obj = GlobalObjects[a];
+
+        if (obj.mesh == NULL)
+            continue;
+
         for (int i = 0; i < obj.mesh->facesCount; ++i)
         {
             int* row = obj.mesh->faces[i];
@@ -348,6 +357,7 @@ void AddRenderTriangles(Object* GlobalObjects, int numObjects, Camera* cam, Vect
             for (int k = 0; k < 3; ++k)
             {
                 Vector3 localVert = obj.mesh->vertices[row[k]];
+                localVert.x *= -1.0f;
 
                 localVert = (Vector3){
                     localVert.x * obj.transform.scale.x,
@@ -363,9 +373,16 @@ void AddRenderTriangles(Object* GlobalObjects, int numObjects, Camera* cam, Vect
                     obj.transform.position.z + rotatedVert.z
                 };
 
-                camVerts[k] = CameraSpace(cam, world);
-            }
+                if (cam == NULL)
+                {
+                    printf("Camera is NULL\n");
+                    return;
+                }
 
+                camVerts[k] = CameraSpace(cam, world);
+                // Flip Z for right-handed system
+                camVerts[k].z *= -1.0f;
+            }
 
             // If vertices are behind the camera, don't add
             if (camVerts[0].z <= 0 || camVerts[1].z <= 0 || camVerts[2].z <= 0)
@@ -374,9 +391,8 @@ void AddRenderTriangles(Object* GlobalObjects, int numObjects, Camera* cam, Vect
 
 
             ///////////////////////////////////////
-            // --- Begin near-plane clipping --- //
+            // --- Near-plane clipping --- //
             ///////////////////////////////////////
-
             int inFront[3];
             int countInFront = 0;
             for (int k = 0; k < 3; k++)
@@ -466,8 +482,6 @@ void AddRenderTriangles(Object* GlobalObjects, int numObjects, Camera* cam, Vect
             }
             // --- End near-plane clipping --- //
 
-
-
             // Filling in the triangle buffer with the clipped array data
             for (int t = 0; t < clippedCount; t += 3)
             {
@@ -495,6 +509,9 @@ void AddRenderTriangles(Object* GlobalObjects, int numObjects, Camera* cam, Vect
                 };
             }
             
+
+
+
             // ----------- Old routine ----------- //
             // -- Doesn't use the clipped array -- //
 
@@ -582,17 +599,18 @@ void RenderTriangles(SDL_Renderer* renderer, WindowInfo program)
 /// This function encapsulates all rendering steps according to settings ///
 ////////////////////////////////////////////////////////////////////////////
 
-void RenderObjects(SDL_Renderer* renderer, WindowInfo program, Object* GlobalObjects, int numObjects, Camera* cam, Vector3 lightDirCamera, bool Wireframe)
+void RenderScene(SDL_Renderer* renderer, WindowInfo program, Scene* scene, Vector3 lightDirCamera, bool Wireframe)
 {
+    Camera* cam = scene->mainCam;
     // Depending on whether Wireframe is true or not, different rendering functions are used.
     if (Wireframe == true)
     {
-        for (int i = 0; i < numObjects; ++i)
-            RenderWireframe(renderer, program, cam, &GlobalObjects[i]);
+        for (int i = 0; i < scene->objectCount; ++i)
+            RenderWireframe(renderer, program, cam, &scene->objects[i]);
     }
     else
     {
-        AddRenderTriangles(GlobalObjects, numObjects, cam, lightDirCamera);
+        AddRenderTriangles(scene->objects, scene->objectCount, cam, lightDirCamera);
         RenderTriangles(renderer, program);
     }
 }

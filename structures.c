@@ -759,6 +759,38 @@ Mesh *load_obj_mesh(const char *filename, Color color)
 
 
 
+/////////////////////////////
+// Function for for Scenes //
+/////////////////////////////
+
+//
+// Adds object to a scenes list.
+//
+void AddObjectToScene(Scene* scene, Object* obj)
+{
+    if (scene->objectCount >= scene->objectCapacity)
+    {
+        // Increase capacity
+        if (scene->objectCapacity == 0)
+            scene->objectCapacity = 2;
+        else
+            scene->objectCapacity *= 2;
+        
+        scene->objects = realloc(scene->objects, sizeof(Object) * scene->objectCapacity);
+    }
+
+    scene->objects[scene->objectCount++] = *obj;
+}
+
+
+
+
+
+
+
+
+
+
 ////////////////////////////////
 // Function for for Matrix4's //
 ////////////////////////////////
