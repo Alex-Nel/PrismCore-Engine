@@ -1,13 +1,12 @@
-#include "include/glad/glad.h"
-#include "include/SDL3/SDL.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
 
+#include "SDL3/SDL.h"
+
 #include "structures.h"
-#include "hardwareRender.h"
+#include "softwareRender.h"
 #include "penguin.h"
 #include "cube.h"
 
@@ -16,10 +15,6 @@
 Object* GlobalObjects = NULL;
 int GlobalObjectCount = 0;
 int GlobalObjectCapacity = 0;
-
-Ray* GlobalRays = NULL;
-int GlobalRayCount = 0;
-int GlobalRayCapacity = 0;
 
 
 
@@ -37,22 +32,6 @@ void AddGlobalObject(Object obj)
     }
     
     GlobalObjects[GlobalObjectCount++] = obj;
-}
-
-void AddRay(Ray r)
-{
-    if (GlobalRayCount >= GlobalRayCapacity)
-    {
-        // Increase capacity
-        if (GlobalRayCapacity == 0)
-            GlobalRayCapacity = 2;
-        else
-            GlobalRayCapacity *= 2;
-        
-        GlobalRays = realloc(GlobalRays, sizeof(Ray) * GlobalRayCapacity);
-    }
-
-    GlobalRays[GlobalRayCount++] = r;
 }
 
 
@@ -73,39 +52,29 @@ int main(int argc, char *argv[])
 
     // Window information, width, height, and FPS
     WindowInfo program = {800, 800, 120};
-
-    // Setting openGL attributes
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    printf("Set openGL attributes\n");
     
     // SDL Window and Renderer creation
-    SDL_Window* window = SDL_CreateWindow("PrismCore", program.width, program.height, SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
+    SDL_Window* window = SDL_CreateWindow("PrismCore", program.width, program.height, SDL_WINDOW_RESIZABLE);
     printf("SDL window Success\n");
 
-    SDL_GLContext context = SDL_GL_CreateContext(window);
-    printf("Made GLContext\n");
+    ///////// GPU renderer
+    // SDL_Renderer* renderer = SDL_CreateRenderer(window, NULL);
+    // SDL_Surface* windowSurface = NULL;
+    // SDL_Surface* surface = NULL;
 
-    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress))
-    {
-        printf("Failed to initialize GLAD\n");
-        return -1;
-    }
-
-    glEnable(GL_DEPTH_TEST);
-    glDepthFunc(GL_LESS);
-    printf("Loaded GLAD and enabled depth testing\n");
-
-    unsigned int shaderProgram = CreateShaderProgram();
-    printf("set up chaders\n");
+    ///////// Software renderer
+    SDL_Surface* surface = SDL_CreateSurface(program.width, program.height, SDL_PIXELFORMAT_RGBA8888);
+    SDL_Surface* windowSurface = SDL_GetWindowSurface(window);
+    SDL_Renderer* renderer = SDL_CreateSoftwareRenderer(surface);
 
 
-    // SDL_SetWindowRelativeMouseMode(window, true);
+    printf("Renderer: %s\n", SDL_GetRendererName(renderer));
+    printf("SDL renderer Success\n");
+
+    SDL_SetWindowRelativeMouseMode(window, true);
     
 
-    Color red = {240, 10, 10, 255};
-    Color green = {10, 245, 10, 255};
+
 
     // Creating an object
     // -----------------------------------------------------------------------
@@ -114,30 +83,31 @@ int main(int argc, char *argv[])
     int faceCount = sizeof(faces) / sizeof(faces[0]);
 
     Object obj1 = CreateObject("Penger");
-    
-    obj1.mesh = CreateMesh(verts, vertexCount, faces, faceCount, red);
-    // obj1.mesh = UploadMeshToGPU(obj1Mesh);
 
+    Color red = {240, 10, 10, 255};
+
+    obj1.mesh = CreateMesh(verts, vertexCount, faces, faceCount, red);
+    obj1.transform.rotation.w = 0;
+    obj1.transform.rotation.y = 1;
     printf("Objects name is: %s\n", obj1.name);
 
     AddGlobalObject(obj1);
 
     // Creating Second Object
     // -----------------------------------------------------------------------
-    printf("Making second object\n");
     vertexCount = sizeof(Cverts) / sizeof(Cverts[0]);
     faceCount = sizeof(Cfaces) / sizeof(Cfaces[0]);
 
-    Object obj2 = CreateObject("Sword");
-    
-    // Mesh* obj2Mesh = CreateMesh(Cverts, vertexCount, Cfaces, faceCount, green);
-    // Mesh* obj2Mesh = load_obj_mesh("E:/Programs/BlinkEngine/src/Sword-lowpoly.obj", green);
-    obj2.mesh = load_obj_mesh("E:/Programs/PrismCore Engine/src/SampleObjects/Human.obj", green);
-    // obj2.mesh = UploadMeshToGPU(obj2Mesh);
+    Object obj2 = CreateObject("Cube");
 
+    Color green = {10, 245, 10, 255};
+
+    // obj2.mesh = CreateMesh(Cverts, vertexCount, Cfaces, faceCount, green);
+    obj2.mesh = load_obj_mesh("E:/Programs/PrismCore Engine/src/SampleObjects/Sword-lowpoly.obj", green);
+    // obj2.mesh = load_obj_mesh("E:/Programs/SDRenderer/src/Human.obj", green);
     obj2.transform.position.x = 1.5f;
-    obj2.transform.rotation = (Quaternion){0, 0, 0, 1};
-    obj2.transform.scale = (Vector3){0.1f, 0.1f, 0.1f};
+    obj2.transform.rotation = (Quaternion){1, 0, 0, 1};
+    obj2.transform.scale = (Vector3){0.02f, 0.02f, 0.02f};
     printf("Objects2 name is: %s\n", obj2.name);
 
     AddGlobalObject(obj2);
@@ -149,6 +119,11 @@ int main(int argc, char *argv[])
     cam.transform.position = (Vector3){0, 0, 0};
     cam.rotation = (Quaternion){0, 0, 0, 1};
     // -----------------------------------------------------------------------
+
+
+    // vertexCount = sizeof(verts) / sizeof(verts[0]);
+    // faceCount = sizeof(faces) / sizeof(faces[0]);
+
 
 
 
@@ -182,28 +157,32 @@ int main(int argc, char *argv[])
 
     // Main Loop
     printf("Starting main loop\n");
-    bool quit = false;
-    int mouseGrabbed = 0;
-    int renderMode = 0;
-    bool renderDebugRays = false;
+    int quit = 0;
+    int mouseGrabbed = 1;
+    bool Wireframe = false;
     SDL_Event event;
-    while (quit == false)
+    while (quit == 0)
     {
-        // printf("Polling events\n");
         while (SDL_PollEvent(&event))
         {
             // If the window gets closed
             if (event.type == SDL_EVENT_QUIT)
-                quit = true;
+                quit = 1;
             
             // If the window gets resized, update the program struct
             if (event.type == SDL_EVENT_WINDOW_RESIZED)
             {
                 SDL_GetWindowSizeInPixels(window, &program.width, &program.height);
-                glViewport(0, 0, program.width, program.height);
-                printf("Window resized. Dimensions:\n");
-                printf("Width: %d\n", program.width);
-                printf("Height: %d\n", program.height);
+
+                // For Software Renderer
+                if (SDL_GetRendererName(renderer)[0] == 's')
+                {
+                    windowSurface = SDL_GetWindowSurface(window);
+                    SDL_DestroySurface(surface);
+                    surface = SDL_CreateSurface(program.width, program.height, SDL_PIXELFORMAT_RGBA8888);
+                    SDL_DestroyRenderer(renderer);
+                    renderer = SDL_CreateSoftwareRenderer(surface);
+                }
             }
 
             // If the button gets pressed (specifically the escape key)
@@ -216,21 +195,7 @@ int main(int argc, char *argv[])
                 }
                 if (event.key.scancode == SDL_SCANCODE_P)
                 {
-                    renderMode = (renderMode + 1) % 3;
-                    printf("Render mode is now: ");
-                    if (renderMode == 0)      printf("Mesh\n");
-                    else if (renderMode == 1) printf("Wireframe\n");
-                    else                      printf("Dots\n");
-                }
-                if (event.key.scancode == SDL_SCANCODE_L)
-                {
-                    renderDebugRays = !renderDebugRays;
-                    printf("Render Debug Rays: ");
-                    if (renderDebugRays == true) printf("On\n");
-                    else                         printf("Off\n");
-
-                    if (renderDebugRays == true)
-                        InitDebugLine();
+                    Wireframe = !Wireframe;
                 }
             }
 
@@ -238,20 +203,6 @@ int main(int argc, char *argv[])
             // If the mouse get clicked 
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
             {
-                //
-                if (event.button.button == SDL_BUTTON_LEFT && mouseGrabbed == true)
-                {
-                    Ray ray = CreateRay(&cam);
-                    float dist;
-                    Object* hitObj = RaycastScene(ray, GlobalObjects, GlobalObjectCount, &dist);
-
-                    if (hitObj)
-                        printf("Hit object: %s at distance: %f\n", hitObj->name, dist);
-                    
-                    AddRay(ray);
-                }
-
-
                 // Capture the mouse if it isn't already
                 if (!SDL_GetWindowRelativeMouseMode(window))
                 {
@@ -266,19 +217,14 @@ int main(int argc, char *argv[])
                 if (mouseGrabbed == true)
                 {
                     SDL_GetRelativeMouseState(&dx, &dy);
-                    Camera_MouseLook(&cam, dx, dy, 0.002f);
+                    Camera_MouseLook(&cam, -dx, -dy, 0.002f);
                 }
             }
         }
 
-        if (mouseGrabbed == true)
-            SDL_WarpMouseInWindow(window, program.width/2, program.height/2);
-
-
-        // printf("Getting keyboard input\n");
         // Get keyboard state and determine input
         const bool* state = SDL_GetKeyboardState(NULL);
-        forward = state[SDL_SCANCODE_W] - state[SDL_SCANCODE_S];
+        forward = state[SDL_SCANCODE_S] - state[SDL_SCANCODE_W];
         right = state[SDL_SCANCODE_D] - state[SDL_SCANCODE_A];
         // up = state[SDL_SCANCODE_SPACE] - state[SDL_SCANCODE_LCTRL];
         up = state[SDL_SCANCODE_SPACE];
@@ -295,6 +241,7 @@ int main(int argc, char *argv[])
         Camera_Move(&cam, forward, right, up, speed);
 
         // Setting animation variables
+        // angle = 3.14159265 / 128;
         angle = 100.0f * (3.14159265f / 180.0f) * dt;
 
 
@@ -303,23 +250,33 @@ int main(int argc, char *argv[])
         /////////////////////////
 
 
-        // Vector3 lightDirCamera = RotateVectorByQuaternion(lightDirWorld, QuaternionInverse(cam.rotation));
+        Vector3 lightDirCamera = RotateVectorByQuaternion(lightDirWorld, QuaternionInverse(cam.rotation));
+
+        // Set Background
+        SDL_SetRenderDrawColor(renderer, 40, 40, 40, 255);
+        SDL_RenderClear(renderer);
 
         //  Rotate object for an animation
-        // RotateObjectZ(&GlobalObjects[1], -angle);
-        // RotateObjectX(&GlobalObjects[1], angle);
-        // RotateObjectY(&GlobalObjects[1], -angle);
+        // RotateObjectZ(&GlobalObjects[0], -angle);
+        // RotateObjectX(&GlobalObjects[0], angle);
+        RotateObjectY(&GlobalObjects[0], -angle);
 
-        if (renderDebugRays == true)
-        {
 
-        }
         // // Render all objects
-        if (renderDebugRays == true && GlobalRayCount > 0)
+        RenderObjects(renderer, program, GlobalObjects, GlobalObjectCount, &cam, lightDirCamera, Wireframe);
+        
+
+
+        // Needed to keep image
+        SDL_RenderPresent(renderer);
+
+        // Needed if using a software renderer
+        
+        if (SDL_GetRendererName(renderer)[0] == 's')
         {
-            UpdateDebugRay(GlobalRays, GlobalRayCount);
+            SDL_BlitSurface(surface, NULL, windowSurface, NULL);
+            SDL_UpdateWindowSurface(window);
         }
-        RenderGL(window, GlobalObjects, GlobalObjectCount, &cam, shaderProgram, renderMode, renderDebugRays, GlobalRayCount);
 
         SDL_Delay(1000/program.FPS);
     }
@@ -327,6 +284,7 @@ int main(int argc, char *argv[])
 
     // Exiting functions
     printf("Quitting SDL\n");
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
 
     SDL_Quit();
